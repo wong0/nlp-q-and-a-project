@@ -135,8 +135,7 @@ def parse_proto_stream(stream, proto_type=StoryAsWords):
             return
 
         print('proto_size_bin', len(proto_size_bin))
-        print('struct.unpack_from(I, proto_size_bin) = ' + struct.unpack_from('I', proto_size_bin))
-
+        print('struct.unpack_from(I, proto_size_bin) = ', struct.unpack_from('I', proto_size_bin))
 
         proto_size = struct.unpack_from('I', proto_size_bin)[0]
         story = proto_type()
