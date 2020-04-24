@@ -10,15 +10,20 @@ import sys
 from base64 import urlsafe_b64decode as b64decode, \
     urlsafe_b64encode as b64encode
 from functools import partial
-from itertools import imap, ifilter
+try:
+    from itertools import imap
+except ImportError:
+    # Python 3...
+    imap=map
 
 import nltk
+nltk.download('punkt')
+
 import pandas as pd
 from google.protobuf import text_format
 
 from mctest_pb2 import AnswerAsWords, QuestionAsWords, StoryAsWords, \
     AnswerAsEmbeddings, QuestionAsEmbeddings, StoryAsEmbeddings
-
 
 DEFAULT_OUTPUT_FORMAT = 'json'
 
@@ -50,9 +55,9 @@ def row_to_dict(row, tokenize=None):
         'questions': [{
             'tokens': tokenize(question_text(row['q%d' % q_number])),
             'answers': [tokenize(row['a%d%d' % (q_number, a_number)])
-                        for a_number in xrange(1, 5)],
+                        for a_number in range(1, 5)],
             'type': question_type(row['q%d' % q_number])
-        } for q_number in xrange(1, 5)]
+        } for q_number in range(1, 5)]
     }
 
 
@@ -128,9 +133,16 @@ def parse_proto_stream(stream, proto_type=StoryAsWords):
             print('Invalid read: rubbish at the end of the file?',
                   file=sys.stderr)
             return
+
+        print('proto_size_bin', len(proto_size_bin))
+        print('struct.unpack_from(I, proto_size_bin) = ' + struct.unpack_from('I', proto_size_bin))
+
+
         proto_size = struct.unpack_from('I', proto_size_bin)[0]
         story = proto_type()
+
         story.ParseFromString(stream.read(proto_size))
+
         yield story
 
 
@@ -177,7 +189,7 @@ if __name__ == '__main__':
         token_mappers.append(to_embeddings)
 
     def tokenize(text):
-        if not isinstance(text, basestring):
+        if not isinstance(text, str):
             text = str(text)
         text = text.replace('\\newline', ' ')
         mapped = nltk.word_tokenize(text)
@@ -190,7 +202,7 @@ if __name__ == '__main__':
     for row in (df.ix[i] for i in df.index):
         datapoint = row_to_dict(row, tokenize)
         try:
-            serialized = None
+            serialized = ''
             if args.o == 'json':
                 serialized = json.dumps(datapoint) + '\n'
             elif args.o == 'proto' or args.o == 'proto_text':
@@ -206,7 +218,11 @@ if __name__ == '__main__':
                       file=sys.stderr)
                 sys.exit(2)
             assert serialized
-            sys.stdout.write(serialized)
+
+            # Note! 
+            # sys.stdout.write( ...converted to string with str())
+            # All errors ignored here. 
+            sys.stdout.write(str(serialized, 'utf-8', 'ignore'))
         except IOError as e:
             if e.errno == errno.EPIPE:
                 sys.exit(0)

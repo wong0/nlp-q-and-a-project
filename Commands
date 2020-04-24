@@ -1,0 +1,10 @@
+Commands
+
+cat data/MCTest/mc160.dev.tsv data/MCTest/mc160.train.tsv | \
+  pyenv exec ./parse.py --rm-stop data/stopwords.txt -o proto > train160-stop.words
+
+
+cat data/MCTest/mc160.dev.ans data/MCTest/mc160.train.ans > train160.ans 
+
+
+pyenv exec ./baseline.py --train train160-stop.words --truth train160.ans --distance

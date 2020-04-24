@@ -9,14 +9,13 @@ import sys
 from base64 import urlsafe_b64decode as b64decode, \
     urlsafe_b64encode as b64encode
 from collections import defaultdict
-from functools import partial
-from itertools import imap
+from functools import partial, reduce
+# from itertools import imap
 
 import numpy as np
 
 from mctest_pb2 import StoryAsWords, QuestionAsWords
 from parse import parse_proto_stream
-
 
 ANSWER_LETTER = ['A', 'B', 'C', 'D']
 
@@ -32,7 +31,7 @@ def compute_counts(stories):
 def compute_inverse_counts(stories):
     counts = compute_counts(stories)
     icounts = {}
-    for token, token_count in counts.iteritems():
+    for token, token_count in counts.items():
         icounts[token] = np.log(1.0 + 1.0 / token_count)
     return icounts
 
@@ -65,10 +64,11 @@ class SlidingWindow(object):
         pass
 
     def fit(self, stories, window_size=None):
+        # Compute inverse counts
         self._icounts = compute_inverse_counts(stories)
         self._window_size = window_size
 
-    def predict_target(self, tokens, target, verbose=True):
+    def predict_target(self, tokens, target, verbose=False):
         if not isinstance(target, set):
             target = set(target)
         target_size = len(target)
@@ -92,7 +92,7 @@ class SlidingWindow(object):
         return max_overlap_score
 
     def predict(self, passage, question, answers,
-                with_distance=True, verbose=True):
+                with_distance=True, verbose=False):
         scores = []
         if verbose:
             print('Question: %s' % question)
@@ -111,43 +111,75 @@ def load_target_answers(stream):
 
 
 if __name__ == '__main__':
+    # add parser
     parser = argparse.ArgumentParser(
         description='Baseline models from the MCTest paper (sliding '
         'window and distance based)')
+
+    # add arguments to parse
     _arg = parser.add_argument
+
+    # add train
     _arg('--train', type=str, action='store', metavar='FILE', required=True,
          help='File with stories and questions (JSON format).')
+    # add truth
     _arg('--truth', type=str, action='store', metavar='FILE',
          help='File with correct answers to the questions.')
+
+    # add window-size
     _arg('--window-size', type=int, action='store', metavar='SIZE',
          default=None, help='Fixed window size for the sliding window ' \
          'algorithm. By default it has the same length as the question.')
+
+    # add distance
     _arg('--distance', action='store_true',
          help='Substract the baseline distance measure.')
+
+    # add parse_args
     args = parser.parse_args()
 
+    # load stories train
     stories = list(parse_proto_stream(open(args.train, 'r')))
-    print('[model]\nwindow_size = %s\ndistance = %s\n' %
-          (args.window_size, args.distance))
+
+    # print('[model]\nwindow_size = %s\ndistance = %s\n' %
+    #       (args.window_size, args.distance))
 
     sw = SlidingWindow()
     sw.fit(stories, window_size=args.window_size)
     predicted, q_types = [], []
+
+    # print('stories: ', len(stories))
+
+    # add stories
     for story in stories:
         passage = story.passage
+        # print('questions: ', len(story.questions))
         for question in story.questions:
+            # append q_types to question.type
             q_types.append(question.type)
+            
+            # define answer_tokens, by create a map 
             answer_tokens = map(lambda x: list(x.tokens), question.answers)
+            
+            # define scores
             scores = sw.predict(passage, list(question.tokens), answer_tokens,
                                 with_distance=args.distance, verbose=False)
+
+            # define predicted_letter
             predicted_letter = ANSWER_LETTER[scores.index(max(scores))]
-            # print('scores: %s (%s)' % (scores, predicted_letter))
+
+            # append predicted_letter to predicted
+            print('scores: %s (%s)' % (scores, predicted_letter))
             predicted.append(predicted_letter)
 
     if args.truth:
         answers_in = open(args.truth, 'r')
         answers = np.array(load_target_answers(answers_in))
         predicted = np.array(predicted)
+
+        # print(len(answers))
+        # print(len(predicted))
+
         assert len(answers) == len(predicted)
 
         single = np.array(q_types) == QuestionAsWords.ONE
