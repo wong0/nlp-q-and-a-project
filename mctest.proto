@@ -1,5 +1,4 @@
-syntax = "proto2";
-
+syntax="proto2";
 package mctest;
 
 // Representation of stories using word tokens:

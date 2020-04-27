@@ -138,6 +138,9 @@ if __name__ == '__main__':
     # add parse_args
     args = parser.parse_args()
 
+    #debug
+    print('debug train file stream', open(args.train, 'r').read(12))
+
     # load stories train
     stories = list(parse_proto_stream(open(args.train, 'r')))
 

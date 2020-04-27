@@ -134,8 +134,7 @@ def parse_proto_stream(stream, proto_type=StoryAsWords):
                   file=sys.stderr)
             return
 
-        print('proto_size_bin', len(proto_size_bin))
-        print('struct.unpack_from(I, proto_size_bin) = ', struct.unpack_from('I', proto_size_bin))
+        print('proto_size_bin', proto_size_bin)
 
         proto_size = struct.unpack_from('I', proto_size_bin)[0]
         story = proto_type()
@@ -198,7 +197,7 @@ if __name__ == '__main__':
 
     data_in = open(args.i, 'r') if args.i else sys.stdin
     df = pd.read_csv(data_in, sep='\t', names=COLUMNS)
-    for row in (df.ix[i] for i in df.index):
+    for row in (df.loc[i] for i in df.index):
         datapoint = row_to_dict(row, tokenize)
         try:
             serialized = ''

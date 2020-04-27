@@ -9,8 +9,8 @@ import sys
 from base64 import urlsafe_b64decode as b64decode, \
     urlsafe_b64encode as b64encode
 from collections import defaultdict
-from functools import partial
-from itertools import imap
+from functools import partial, reduce
+# from itertools import imap
 
 import numpy as np
 
@@ -96,6 +96,9 @@ if __name__ == '__main__':
     sw = SlidingWindowEmbeddings(window_size=args.window_size)
     predicted, q_types = [], []
     to_array_list = lambda tokens: map(lambda s: np.array(s.value), tokens)
+
+    print('len(stories)', len(stories))
+    
     for story in stories[:]:
         passage_vec = to_array_list(story.passage)
         for question in story.questions:
@@ -103,7 +106,11 @@ if __name__ == '__main__':
             question_vec = to_array_list(question.tokens)
             answers_vec = [to_array_list(answer.tokens)
                            for answer in question.answers]
+            
+            print('story > scores', scores)
+
             scores = sw.predict(passage_vec, question_vec, answers_vec, False)
+
             # print(ANSWER_LETTER[scores.index(max(scores))])
             predicted.append(ANSWER_LETTER[scores.index(max(scores))])
 
@@ -111,6 +118,9 @@ if __name__ == '__main__':
         answers_in = open(args.truth, 'r')
         answers = np.array(load_target_answers(answers_in))
         predicted = np.array(predicted)
+
+        print('len(answers) =', len(answers), 'len(predicted) =', len(predicted));
+
         assert len(answers) == len(predicted)
 
         single = np.array(q_types) == QuestionAsEmbeddings.ONE
